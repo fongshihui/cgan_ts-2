@@ -7,6 +7,8 @@ from eval_utils import (
     apply_generation_controls,
     garch_sigma_forecast_from_csv,
     reconstruct_returns_and_prices,
+    build_synthetic_ohlcv,
+    save_ohlcv_frames,
 )
 
 def main():
@@ -53,6 +55,16 @@ def main():
             start_price=np.array(start_price, dtype=np.float32),
         )
         print(f"Saved reconstructed outputs to {args.out_npz}")
+
+        ohlcv_frames = build_synthetic_ohlcv(
+            prices=prices,
+            returns=returns,
+            volume_base=args.volume_base,
+            volume_alpha=args.volume_alpha,
+            seed=args.seed,
+        )
+        ohlcv_paths = save_ohlcv_frames(ohlcv_frames, args.out_ohlcv_dir)
+        print(f"Saved OHLCV CSV files to {args.out_ohlcv_dir} ({len(ohlcv_paths)} files)")
 
         plt.figure()
         for i in range(args.n_samples):

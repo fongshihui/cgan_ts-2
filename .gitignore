@@ -1,6 +1,9 @@
 # Python cache/artifacts
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
 
 # Virtual environments
 .venv/
@@ -11,6 +14,15 @@ env/
 *.pt
 *.pth
 *.npz
+*.log
 
 # macOS
 .DS_Store
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Local env files
+.env
+.env.*

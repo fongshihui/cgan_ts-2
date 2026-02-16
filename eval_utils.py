@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 from arch import arch_model
 
 
@@ -46,3 +47,50 @@ def reconstruct_returns_and_prices(eps, sigma, start_price):
     log_price_paths = np.log(start_price) + np.cumsum(ret, axis=1)
     prices = np.exp(log_price_paths)
     return ret, prices
+
+
+def build_synthetic_ohlcv(prices, returns, volume_base=1_000_000.0, volume_alpha=30.0, seed=42):
+    rng = np.random.default_rng(seed)
+    n_samples, seq_len = prices.shape
+    frames = []
+
+    for i in range(n_samples):
+        close = prices[i].astype(np.float64)
+        ret = returns[i].astype(np.float64)
+
+        open_ = np.empty(seq_len, dtype=np.float64)
+        open_[0] = close[0]
+        open_[1:] = close[:-1]
+
+        span = np.abs(ret) + 1e-4
+        jitter = rng.uniform(0.1, 0.6, size=seq_len)
+        high = np.maximum(open_, close) * (1.0 + jitter * span)
+        low = np.minimum(open_, close) * (1.0 - jitter * span)
+        low = np.clip(low, 1e-8, None)
+
+        vol_noise = rng.lognormal(mean=0.0, sigma=0.25, size=seq_len)
+        volume = volume_base * (1.0 + volume_alpha * np.abs(ret)) * vol_noise
+
+        frame = pd.DataFrame(
+            {
+                "step": np.arange(seq_len, dtype=np.int64),
+                "Open": open_,
+                "High": high,
+                "Low": low,
+                "Close": close,
+                "Volume": volume,
+            }
+        )
+        frames.append(frame)
+
+    return frames
+
+
+def save_ohlcv_frames(frames, out_dir, prefix="sample"):
+    os.makedirs(out_dir, exist_ok=True)
+    paths = []
+    for i, frame in enumerate(frames):
+        path = os.path.join(out_dir, f"{prefix}_{i}.csv")
+        frame.to_csv(path, index=False)
+        paths.append(path)
+    return paths

@@ -20,4 +20,8 @@ def parse_args():
     ap.add_argument("--csv", default=None, help="CSV with Close column for volatility fitting")
     ap.add_argument("--start_price", type=float, default=None, help="Initial price for reconstruction")
     ap.add_argument("--out_npz", default="synthetic_paths.npz", help="Output file for eps/returns/prices")
+    ap.add_argument("--out_ohlcv_dir", default="synthetic_ohlcv", help="Directory for per-sample OHLCV CSV files")
+    ap.add_argument("--volume_base", type=float, default=1_000_000.0, help="Base synthetic volume level")
+    ap.add_argument("--volume_alpha", type=float, default=30.0, help="Volume sensitivity to absolute returns")
+    ap.add_argument("--seed", type=int, default=42, help="Random seed for OHLCV synthesis")
     return ap.parse_args()

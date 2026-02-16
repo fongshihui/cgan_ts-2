@@ -74,7 +74,8 @@ python3 eval.py \
   --desired_trend 0.3 \
   --desired_fat_tails 1.5 \
   --desired_momentum 0.7 \
-  --out_npz synthetic_paths.npz
+  --out_npz synthetic_paths.npz \
+  --out_ohlcv_dir synthetic_ohlcv
 ```
 
 `synthetic_paths.npz` contains:
@@ -83,6 +84,9 @@ python3 eval.py \
 - `prices`: reconstructed synthetic price paths
 - `sigma`: forecast volatility path used for reconstruction
 - `cond`: class labels used for each sample
+
+`synthetic_ohlcv/` contains one CSV per generated sample:
+- columns: `step, Open, High, Low, Close, Volume`
 
 ## Quickstart With Included Dataset
 
