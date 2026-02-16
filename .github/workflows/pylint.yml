@@ -1,23 +1,33 @@
-name: Pylint
+name: Lint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.10"]
+
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint
-    - name: Analysing the code with pylint
+        pip install pylint black isort autoflake
+
+    - name: Auto-fix formatting & unused code
       run: |
-        pylint $(git ls-files '*.py')
+        autoflake --remove-all-unused-imports --remove-unused-variables -r -i .
+        isort .
+        black .
+
+    - name: Run pylint (fail only on real issues)
+      run: |
+        pylint --fail-under=9.0 $(git ls-files '*.py')

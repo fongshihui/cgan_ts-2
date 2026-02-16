@@ -1,5 +1,6 @@
 import argparse
 import json
+
 import numpy as np
 import pandas as pd
 from arch import arch_model
@@ -9,12 +10,16 @@ from sklearn.preprocessing import StandardScaler
 def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", required=True, help="Real data CSV with Close column")
-    ap.add_argument("--npz", required=True, help="Synthetic output npz (e.g. synthetic_paths.npz)")
+    ap.add_argument(
+        "--npz", required=True, help="Synthetic output npz (e.g. synthetic_paths.npz)"
+    )
     ap.add_argument("--max_lag", type=int, default=10)
     ap.add_argument("--max_real_windows", type=int, default=2000)
     ap.add_argument("--max_synth_windows", type=int, default=500)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--out_json", default=None, help="Optional path to save metrics json")
+    ap.add_argument(
+        "--out_json", default=None, help="Optional path to save metrics json"
+    )
     return ap.parse_args()
 
 
@@ -30,8 +35,8 @@ def summary_stats(x):
     return {
         "mean": safe_float(mu),
         "std": safe_float(sd),
-        "skew": safe_float(np.mean(z ** 3)),
-        "kurtosis": safe_float(np.mean(z ** 4)),
+        "skew": safe_float(np.mean(z**3)),
+        "kurtosis": safe_float(np.mean(z**4)),
         "q01": safe_float(np.quantile(x, 0.01)),
         "q05": safe_float(np.quantile(x, 0.05)),
         "q50": safe_float(np.quantile(x, 0.50)),
@@ -107,7 +112,9 @@ def regime_summary(eps_windows, cond, n_classes=3):
     return out
 
 
-def nearest_neighbor_distance(synth_windows, real_windows, max_synth=500, max_real=2000, seed=42):
+def nearest_neighbor_distance(
+    synth_windows, real_windows, max_synth=500, max_real=2000, seed=42
+):
     rng = np.random.default_rng(seed)
     s = np.asarray(synth_windows, dtype=np.float32)
     r = np.asarray(real_windows, dtype=np.float32)
@@ -160,18 +167,34 @@ def evaluate_quality_metrics(
 
     syn_eps = syn["eps"].astype(np.float32)
     seq_len = syn_eps.shape[1]
-    syn_cond = syn["cond"].astype(np.int64) if "cond" in syn else np.zeros(len(syn_eps), dtype=np.int64)
+    syn_cond = (
+        syn["cond"].astype(np.int64)
+        if "cond" in syn
+        else np.zeros(len(syn_eps), dtype=np.int64)
+    )
     syn_returns = syn["returns"].astype(np.float32) if "returns" in syn else None
     controls_used = {
-        "desired_volatility": safe_float(syn["desired_volatility"]) if "desired_volatility" in syn else None,
-        "desired_trend": safe_float(syn["desired_trend"]) if "desired_trend" in syn else None,
-        "desired_fat_tails": safe_float(syn["desired_fat_tails"]) if "desired_fat_tails" in syn else None,
-        "desired_momentum": safe_float(syn["desired_momentum"]) if "desired_momentum" in syn else None,
+        "desired_volatility": (
+            safe_float(syn["desired_volatility"])
+            if "desired_volatility" in syn
+            else None
+        ),
+        "desired_trend": (
+            safe_float(syn["desired_trend"]) if "desired_trend" in syn else None
+        ),
+        "desired_fat_tails": (
+            safe_float(syn["desired_fat_tails"]) if "desired_fat_tails" in syn else None
+        ),
+        "desired_momentum": (
+            safe_float(syn["desired_momentum"]) if "desired_momentum" in syn else None
+        ),
     }
 
     df = pd.read_csv(csv_path)
     close = df["Close"].astype(float).values
-    real_returns, real_eps_windows, real_cond = fit_real_and_build_windows(close, seq_len=seq_len)
+    real_returns, real_eps_windows, real_cond = fit_real_and_build_windows(
+        close, seq_len=seq_len
+    )
 
     # Distribution + tail metrics (returns if available, otherwise eps).
     if syn_returns is not None:
@@ -192,7 +215,8 @@ def evaluate_quality_metrics(
         "estimated_volatility_multiplier": safe_float(syn_eps_std / real_eps_std),
         "estimated_trend_slope_per_step": trend_slope_per_step(syn_eps),
         "estimated_tail_kurtosis_ratio": safe_float(
-            (summary_stats(syn_vec)["kurtosis"] + 1e-12) / (summary_stats(real_vec)["kurtosis"] + 1e-12)
+            (summary_stats(syn_vec)["kurtosis"] + 1e-12)
+            / (summary_stats(real_vec)["kurtosis"] + 1e-12)
         ),
         "estimated_momentum_acf_lag1": acf(syn_eps_flat, 1)[0],
     }
@@ -201,18 +225,28 @@ def evaluate_quality_metrics(
     if all(v is not None for v in controls_used.values()):
         control_match = {
             "volatility_abs_error": safe_float(
-                abs(realized_controls["estimated_volatility_multiplier"] - controls_used["desired_volatility"])
+                abs(
+                    realized_controls["estimated_volatility_multiplier"]
+                    - controls_used["desired_volatility"]
+                )
             ),
             "trend_sign_match": bool(
-                np.sign(realized_controls["estimated_trend_slope_per_step"]) == np.sign(controls_used["desired_trend"])
+                np.sign(realized_controls["estimated_trend_slope_per_step"])
+                == np.sign(controls_used["desired_trend"])
                 if controls_used["desired_trend"] != 0
                 else abs(realized_controls["estimated_trend_slope_per_step"]) < 1e-4
             ),
             "tails_abs_error": safe_float(
-                abs(realized_controls["estimated_tail_kurtosis_ratio"] - controls_used["desired_fat_tails"])
+                abs(
+                    realized_controls["estimated_tail_kurtosis_ratio"]
+                    - controls_used["desired_fat_tails"]
+                )
             ),
             "momentum_abs_error": safe_float(
-                abs(realized_controls["estimated_momentum_acf_lag1"] - controls_used["desired_momentum"])
+                abs(
+                    realized_controls["estimated_momentum_acf_lag1"]
+                    - controls_used["desired_momentum"]
+                )
             ),
         }
 

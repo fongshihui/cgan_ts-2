@@ -1,6 +1,7 @@
+import os
+
 import numpy as np
 import pandas as pd
-import os
 from arch import arch_model
 
 
@@ -25,7 +26,9 @@ def apply_generation_controls(
         out = np.empty_like(eps)
         out[:, 0] = eps[:, 0]
         for t in range(1, seq_len):
-            out[:, t] = desired_momentum * out[:, t - 1] + (1.0 - desired_momentum) * eps[:, t]
+            out[:, t] = (
+                desired_momentum * out[:, t - 1] + (1.0 - desired_momentum) * eps[:, t]
+            )
         eps = out
 
     return eps
@@ -49,7 +52,9 @@ def reconstruct_returns_and_prices(eps, sigma, start_price):
     return ret, prices
 
 
-def build_synthetic_ohlcv(prices, returns, volume_base=1_000_000.0, volume_alpha=30.0, seed=42):
+def build_synthetic_ohlcv(
+    prices, returns, volume_base=1_000_000.0, volume_alpha=30.0, seed=42
+):
     rng = np.random.default_rng(seed)
     n_samples, seq_len = prices.shape
     frames = []

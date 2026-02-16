@@ -1,17 +1,16 @@
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
 import json
-from models import Generator
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
 from eval_args import parse_args
-from eval_utils import (
-    apply_generation_controls,
-    garch_sigma_forecast_from_csv,
-    reconstruct_returns_and_prices,
-    build_synthetic_ohlcv,
-    save_ohlcv_frames,
-)
+from eval_utils import (apply_generation_controls, build_synthetic_ohlcv,
+                        garch_sigma_forecast_from_csv,
+                        reconstruct_returns_and_prices, save_ohlcv_frames)
 from evaluate_quality import evaluate_quality_metrics
+from models import Generator
+
 
 def main():
     args = parse_args()
@@ -19,7 +18,9 @@ def main():
     if len(conds) == 0:
         raise ValueError("--conds must contain at least one class id")
 
-    conds = (conds * ((args.n_samples + len(conds) - 1) // len(conds)))[:args.n_samples]
+    conds = (conds * ((args.n_samples + len(conds) - 1) // len(conds)))[
+        : args.n_samples
+    ]
     c = torch.tensor(conds, dtype=torch.long)
 
     G = Generator(args.z_dim, args.hidden_dim, args.n_layers, args.n_classes)
@@ -70,7 +71,9 @@ def main():
             seed=args.seed,
         )
         ohlcv_paths = save_ohlcv_frames(ohlcv_frames, args.out_ohlcv_dir)
-        print(f"Saved OHLCV CSV files to {args.out_ohlcv_dir} ({len(ohlcv_paths)} files)")
+        print(
+            f"Saved OHLCV CSV files to {args.out_ohlcv_dir} ({len(ohlcv_paths)} files)"
+        )
 
         if args.run_quality_eval:
             metrics, _ = evaluate_quality_metrics(
@@ -96,7 +99,10 @@ def main():
         plt.legend()
         plt.show()
     else:
-        print("Skipped returns/price reconstruction: pass --csv to fit GARCH and forecast sigma.")
+        print(
+            "Skipped returns/price reconstruction: pass --csv to fit GARCH and forecast sigma."
+        )
+
 
 if __name__ == "__main__":
     main()
