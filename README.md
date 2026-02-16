@@ -116,6 +116,20 @@ python3 train.py
 python3 eval.py --csv sample_prices.csv --out_npz synthetic_paths.npz
 ```
 
+## Training vs GitHub
+
+- Training quality improves only when you run `train.py` (or fine-tune) on data.
+- Pushing to GitHub does not train the model and does not improve weights automatically.
+- GitHub helps with:
+- versioning code and experiment setup
+- sharing reproducible pipeline and configs
+- collaboration via pull requests/issues
+
+How others benefit:
+- They can clone the repo and run the same training/eval flow.
+- They can train on their own data for new checkpoints.
+- If you share `generator.pt`, they can use that exact trained model directly.
+
 ## Pipeline Summary
 1. Close prices -> log returns
 2. Fit GARCH(1,1)
