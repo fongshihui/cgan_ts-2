@@ -26,3 +26,5 @@ env/
 # Local env files
 .env
 .env.*
+
+synthetic_ohlcv/

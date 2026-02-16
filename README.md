@@ -88,6 +88,24 @@ python3 eval.py \
 `synthetic_ohlcv/` contains one CSV per generated sample:
 - columns: `step, Open, High, Low, Close, Volume`
 
+## Quality Evaluation
+
+Evaluate synthetic quality against a real CSV:
+
+```bash
+python3 evaluate_quality.py \
+  --csv sample_prices.csv \
+  --npz synthetic_paths.npz \
+  --out_json quality_report.json
+```
+
+It reports:
+- distribution stats (mean/std/skew/kurtosis/quantiles)
+- VaR/ES at 95% and 99%
+- ACF of returns and absolute returns
+- regime-wise residual behavior by class
+- nearest-neighbor L2 distance (memorization signal)
+
 ## Quickstart With Included Dataset
 
 A sample dataset is included at `sample_prices.csv` (column: `Close`).
