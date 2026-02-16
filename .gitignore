@@ -28,3 +28,4 @@ env/
 .env.*
 
 synthetic_ohlcv/
+eval_runs/

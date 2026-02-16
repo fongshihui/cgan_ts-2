@@ -24,4 +24,7 @@ def parse_args():
     ap.add_argument("--volume_base", type=float, default=1_000_000.0, help="Base synthetic volume level")
     ap.add_argument("--volume_alpha", type=float, default=30.0, help="Volume sensitivity to absolute returns")
     ap.add_argument("--seed", type=int, default=42, help="Random seed for OHLCV synthesis")
+    ap.add_argument("--run_quality_eval", action="store_true", help="Run quality metrics after saving npz")
+    ap.add_argument("--quality_out_json", default="quality_report.json", help="Quality metrics output JSON path")
+    ap.add_argument("--quality_max_lag", type=int, default=10, help="Max lag for ACF quality metrics")
     return ap.parse_args()

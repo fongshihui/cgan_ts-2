@@ -75,7 +75,9 @@ python3 eval.py \
   --desired_fat_tails 1.5 \
   --desired_momentum 0.7 \
   --out_npz synthetic_paths.npz \
-  --out_ohlcv_dir synthetic_ohlcv
+  --out_ohlcv_dir synthetic_ohlcv \
+  --run_quality_eval \
+  --quality_out_json quality_report.json
 ```
 
 `synthetic_paths.npz` contains:
@@ -87,6 +89,9 @@ python3 eval.py \
 
 `synthetic_ohlcv/` contains one CSV per generated sample:
 - columns: `step, Open, High, Low, Close, Volume`
+
+When `--run_quality_eval` is enabled, eval also writes:
+- `quality_report.json`: distribution, VaR/ES, ACF, regime stats, and NN distance metrics
 
 ## Quality Evaluation
 

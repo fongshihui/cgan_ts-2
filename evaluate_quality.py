@@ -40,6 +40,17 @@ def summary_stats(x):
     }
 
 
+def trend_slope_per_step(windows):
+    w = np.asarray(windows, dtype=np.float64)
+    if w.ndim != 2 or w.shape[1] < 2:
+        return 0.0
+    t = np.arange(w.shape[1], dtype=np.float64)
+    t_center = t - t.mean()
+    denom = np.dot(t_center, t_center) + 1e-12
+    slopes = (w @ t_center) / denom
+    return safe_float(np.mean(slopes))
+
+
 def var_es(x, alpha):
     x = np.asarray(x, dtype=np.float64).reshape(-1)
     q = np.quantile(x, 1.0 - alpha)
@@ -135,9 +146,15 @@ def print_block(title, d):
         print(f"  {k}: {v}")
 
 
-def main():
-    args = parse_args()
-    syn = np.load(args.npz)
+def evaluate_quality_metrics(
+    csv_path,
+    npz_path,
+    max_lag=10,
+    max_real_windows=2000,
+    max_synth_windows=500,
+    seed=42,
+):
+    syn = np.load(npz_path)
     if "eps" not in syn:
         raise ValueError("Synthetic npz must contain key 'eps'")
 
@@ -145,8 +162,14 @@ def main():
     seq_len = syn_eps.shape[1]
     syn_cond = syn["cond"].astype(np.int64) if "cond" in syn else np.zeros(len(syn_eps), dtype=np.int64)
     syn_returns = syn["returns"].astype(np.float32) if "returns" in syn else None
+    controls_used = {
+        "desired_volatility": safe_float(syn["desired_volatility"]) if "desired_volatility" in syn else None,
+        "desired_trend": safe_float(syn["desired_trend"]) if "desired_trend" in syn else None,
+        "desired_fat_tails": safe_float(syn["desired_fat_tails"]) if "desired_fat_tails" in syn else None,
+        "desired_momentum": safe_float(syn["desired_momentum"]) if "desired_momentum" in syn else None,
+    }
 
-    df = pd.read_csv(args.csv)
+    df = pd.read_csv(csv_path)
     close = df["Close"].astype(float).values
     real_returns, real_eps_windows, real_cond = fit_real_and_build_windows(close, seq_len=seq_len)
 
@@ -160,33 +183,86 @@ def main():
         syn_vec = syn_eps.reshape(-1)
         metric_target = "eps (returns unavailable in npz)"
 
+    real_eps_flat = real_eps_windows.reshape(-1)
+    syn_eps_flat = syn_eps.reshape(-1)
+    real_eps_std = np.std(real_eps_flat) + 1e-12
+    syn_eps_std = np.std(syn_eps_flat)
+
+    realized_controls = {
+        "estimated_volatility_multiplier": safe_float(syn_eps_std / real_eps_std),
+        "estimated_trend_slope_per_step": trend_slope_per_step(syn_eps),
+        "estimated_tail_kurtosis_ratio": safe_float(
+            (summary_stats(syn_vec)["kurtosis"] + 1e-12) / (summary_stats(real_vec)["kurtosis"] + 1e-12)
+        ),
+        "estimated_momentum_acf_lag1": acf(syn_eps_flat, 1)[0],
+    }
+
+    control_match = None
+    if all(v is not None for v in controls_used.values()):
+        control_match = {
+            "volatility_abs_error": safe_float(
+                abs(realized_controls["estimated_volatility_multiplier"] - controls_used["desired_volatility"])
+            ),
+            "trend_sign_match": bool(
+                np.sign(realized_controls["estimated_trend_slope_per_step"]) == np.sign(controls_used["desired_trend"])
+                if controls_used["desired_trend"] != 0
+                else abs(realized_controls["estimated_trend_slope_per_step"]) < 1e-4
+            ),
+            "tails_abs_error": safe_float(
+                abs(realized_controls["estimated_tail_kurtosis_ratio"] - controls_used["desired_fat_tails"])
+            ),
+            "momentum_abs_error": safe_float(
+                abs(realized_controls["estimated_momentum_acf_lag1"] - controls_used["desired_momentum"])
+            ),
+        }
+
     metrics = {
         "target": metric_target,
+        "controls_used": controls_used,
+        "realized_controls": realized_controls,
+        "control_match": control_match,
         "summary_real": summary_stats(real_vec),
         "summary_synth": summary_stats(syn_vec),
         "var_es_95_real": var_es(real_vec, 0.95),
         "var_es_95_synth": var_es(syn_vec, 0.95),
         "var_es_99_real": var_es(real_vec, 0.99),
         "var_es_99_synth": var_es(syn_vec, 0.99),
-        "acf_real": acf(real_vec, args.max_lag),
-        "acf_synth": acf(syn_vec, args.max_lag),
-        "acf_abs_real": acf(np.abs(real_vec), args.max_lag),
-        "acf_abs_synth": acf(np.abs(syn_vec), args.max_lag),
+        "acf_real": acf(real_vec, max_lag),
+        "acf_synth": acf(syn_vec, max_lag),
+        "acf_abs_real": acf(np.abs(real_vec), max_lag),
+        "acf_abs_synth": acf(np.abs(syn_vec), max_lag),
         "regime_real": regime_summary(real_eps_windows, real_cond),
         "regime_synth": regime_summary(syn_eps, syn_cond),
         "nearest_neighbor_l2": nearest_neighbor_distance(
             syn_eps,
             real_eps_windows,
-            max_synth=args.max_synth_windows,
-            max_real=args.max_real_windows,
-            seed=args.seed,
+            max_synth=max_synth_windows,
+            max_real=max_real_windows,
+            seed=seed,
         ),
     }
+    return metrics, seq_len
+
+
+def main():
+    args = parse_args()
+    metrics, seq_len = evaluate_quality_metrics(
+        csv_path=args.csv,
+        npz_path=args.npz,
+        max_lag=args.max_lag,
+        max_real_windows=args.max_real_windows,
+        max_synth_windows=args.max_synth_windows,
+        seed=args.seed,
+    )
 
     print("Quality Evaluation Summary")
     print(f"real_csv: {args.csv}")
     print(f"synthetic_npz: {args.npz}")
     print(f"seq_len: {seq_len}")
+    print_block("controls_used", metrics["controls_used"])
+    print_block("realized_controls", metrics["realized_controls"])
+    if metrics["control_match"] is not None:
+        print_block("control_match", metrics["control_match"])
     print_block("summary_real", metrics["summary_real"])
     print_block("summary_synth", metrics["summary_synth"])
     print_block("var_es_95_real", metrics["var_es_95_real"])

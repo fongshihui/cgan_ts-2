@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 from models import Generator
 from eval_args import parse_args
 from eval_utils import (
@@ -10,6 +11,7 @@ from eval_utils import (
     build_synthetic_ohlcv,
     save_ohlcv_frames,
 )
+from evaluate_quality import evaluate_quality_metrics
 
 def main():
     args = parse_args()
@@ -53,6 +55,10 @@ def main():
             sigma=sigma.astype(np.float32),
             cond=np.array(conds, dtype=np.int64),
             start_price=np.array(start_price, dtype=np.float32),
+            desired_volatility=np.array(args.desired_volatility, dtype=np.float32),
+            desired_trend=np.array(args.desired_trend, dtype=np.float32),
+            desired_fat_tails=np.array(args.desired_fat_tails, dtype=np.float32),
+            desired_momentum=np.array(args.desired_momentum, dtype=np.float32),
         )
         print(f"Saved reconstructed outputs to {args.out_npz}")
 
@@ -65,6 +71,23 @@ def main():
         )
         ohlcv_paths = save_ohlcv_frames(ohlcv_frames, args.out_ohlcv_dir)
         print(f"Saved OHLCV CSV files to {args.out_ohlcv_dir} ({len(ohlcv_paths)} files)")
+
+        if args.run_quality_eval:
+            metrics, _ = evaluate_quality_metrics(
+                csv_path=args.csv,
+                npz_path=args.out_npz,
+                max_lag=args.quality_max_lag,
+                seed=args.seed,
+            )
+            metrics["controls_used"] = {
+                "desired_volatility": float(args.desired_volatility),
+                "desired_trend": float(args.desired_trend),
+                "desired_fat_tails": float(args.desired_fat_tails),
+                "desired_momentum": float(args.desired_momentum),
+            }
+            with open(args.quality_out_json, "w", encoding="utf-8") as f:
+                json.dump(metrics, f, indent=2)
+            print(f"Saved quality report to {args.quality_out_json}")
 
         plt.figure()
         for i in range(args.n_samples):
